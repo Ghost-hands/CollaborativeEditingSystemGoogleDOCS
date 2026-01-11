@@ -1,0 +1,84 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      httpclient:
+        connect-timeout: 60000
+        response-timeout: 60s
+      routes:
+        - id: user-management-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
+        - id: user-management-internal-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/internal/users/**
+          filters:
+            - StripPrefix=0
+        - id: document-editing-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/documents/**
+          filters:
+            - StripPrefix=1
+        - id: document-editing-internal-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/internal/documents/**
+          filters:
+            - StripPrefix=0
+        - id: version-control-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/versions/**
+          filters:
+            - StripPrefix=1
+        - id: version-control-internal-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/internal/versions/**
+          filters:
+            - StripPrefix=0
+        - id: websocket-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/ws/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: DEBUG
+    com.collaborative.editing: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/gateway.log
+
+# eureka:
+#   client:
+#     enabled: false
+

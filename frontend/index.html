@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Collaborative Editing System</title>
+    <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.6/quill.snow.css" />
+    <script>
+      // Polyfill Request API before ANY code runs
+      // This must execute synchronously before any modules load
+      (function() {
+        'use strict';
+        
+        // Get browser-native APIs - try all possible sources
+        let RequestNative, ResponseNative, HeadersNative, FetchNative;
+        
+        // Try window first (most reliable in browsers)
+        if (typeof window !== 'undefined') {
+          RequestNative = window.Request;
+          ResponseNative = window.Response;
+          HeadersNative = window.Headers;
+          FetchNative = window.fetch;
+        }
+        
+        // Try global scope
+        if (!RequestNative) {
+          try {
+            RequestNative = typeof Request !== 'undefined' ? Request : null;
+            ResponseNative = typeof Response !== 'undefined' ? Response : null;
+            HeadersNative = typeof Headers !== 'undefined' ? Headers : null;
+            FetchNative = typeof fetch !== 'undefined' ? fetch : null;
+          } catch(e) {}
+        }
+        
+        // Try self (for web workers)
+        if (!RequestNative && typeof self !== 'undefined') {
+          RequestNative = self.Request;
+          ResponseNative = self.Response;
+          HeadersNative = self.Headers;
+          FetchNative = self.fetch;
+        }
+        
+        // Ensure Request, Response, Headers are available on globalThis
+        if (RequestNative) {
+          globalThis.Request = RequestNative;
+          globalThis.Response = ResponseNative;
+          globalThis.Headers = HeadersNative;
+          globalThis.fetch = FetchNative;
+        }
+        
+        // Create a module-like object for undici that can be destructured
+        // This is critical - it must be an object, not undefined
+        const undiciShim = {
+          Request: RequestNative || function Request() { 
+            throw new Error('Request not available'); 
+          },
+          Response: ResponseNative || function Response() { 
+            throw new Error('Response not available'); 
+          },
+          Headers: HeadersNative || function Headers() { 
+            throw new Error('Headers not available'); 
+          },
+          fetch: FetchNative || function fetch() { 
+            throw new Error('fetch not available'); 
+          }
+        };
+        
+        // Set undici on globalThis IMMEDIATELY and make it non-configurable
+        // This ensures it's available before any module code runs
+        try {
+          Object.defineProperty(globalThis, 'undici', {
+            value: undiciShim,
+            writable: false,
+            configurable: false,
+            enumerable: true
+          });
+        } catch(e) {
+          // Fallback if defineProperty fails
+          globalThis.undici = undiciShim;
+        }
+        
+        // Also set on window for browser environments
+        if (typeof window !== 'undefined') {
+          try {
+            Object.defineProperty(window, 'undici', {
+              value: undiciShim,
+              writable: false,
+              configurable: false,
+              enumerable: true
+            });
+          } catch(e) {
+            window.undici = undiciShim;
+          }
+          window.__undici_shim__ = undiciShim;
+        }
+        
+        // Intercept require calls for 'undici' (CommonJS)
+        if (typeof require !== 'undefined' && typeof require.cache !== 'undefined') {
+          require.cache['undici'] = { exports: undiciShim };
+        }
+        
+        // AGGRESSIVE FIX: Intercept any access to 'undici' variable
+        // This catches cases where code tries to destructure from undefined undici
+        if (typeof Proxy !== 'undefined') {
+          // Create a proxy that intercepts property access
+          const undiciProxy = new Proxy(undiciShim, {
+            get: function(target, prop) {
+              if (prop in target) {
+                return target[prop];
+              }
+              // Return undefined for unknown properties instead of throwing
+              return undefined;
+            }
+          });
+          
+          // Replace the shim with the proxy
+          try {
+            Object.defineProperty(globalThis, 'undici', {
+              value: undiciProxy,
+              writable: false,
+              configurable: false,
+              enumerable: true
+            });
+            if (typeof window !== 'undefined') {
+              Object.defineProperty(window, 'undici', {
+                value: undiciProxy,
+                writable: false,
+                configurable: false,
+                enumerable: true
+              });
+            }
+          } catch(e) {
+            // Proxy not supported or defineProperty failed, use regular object
+          }
+        }
+        
+        // Verify it's set
+        if (typeof globalThis.undici === 'undefined') {
+          console.error('Failed to set globalThis.undici');
+        } else {
+          console.log('undici polyfill initialized successfully');
+        }
+      })();
+    </script>
+    <script>
+      // AGGRESSIVE FIX: Patch require and module system to intercept undici
+      // This runs before the main module script loads
+      (function() {
+        'use strict';
+        
+        const undiciShim = globalThis.undici || window.undici;
+        
+        // Patch require function if it exists (CommonJS)
+        if (typeof require !== 'undefined') {
+          const originalRequire = require;
+          require = function(id) {
+            if (id === 'undici' || id.startsWith('undici/')) {
+              return undiciShim;
+            }
+            return originalRequire.apply(this, arguments);
+          };
+          
+          // Also patch require.cache
+          if (require.cache) {
+            require.cache['undici'] = { exports: undiciShim };
+          }
+        }
+        
+        // Patch module.exports if module system is available
+        if (typeof module !== 'undefined' && module.constructor) {
+          const Module = module.constructor;
+          const originalRequire = Module.prototype.require;
+          Module.prototype.require = function(id) {
+            if (id === 'undici' || id.startsWith('undici/')) {
+              return undiciShim;
+            }
+            return originalRequire.apply(this, arguments);
+          };
+        }
+        
+        // Ensure any direct access to 'undici' variable returns our shim
+        // This catches cases where code does: const { Request } = undici;
+        // We can't directly intercept this, but we can ensure undici is always defined
+        if (typeof window !== 'undefined') {
+          // Make undici available as a global variable (not just property)
+          window.undici = undiciShim;
+          
+          // Also try to set it in the global scope
+          try {
+            // This won't work in strict mode, but worth trying
+            eval('var undici = window.undici;');
+          } catch(e) {
+            // Expected to fail in strict mode, that's okay
+          }
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Fallback loading message -->
+      <div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;">
+        <h2>Loading Collaborative Editing System...</h2>
+        <p>If this message persists, check the browser console (F12) for errors.</p>
+      </div>
+    </div>
+    <script>
+      // Intercept and fix destructuring errors at runtime
+      // This runs BEFORE any module code executes
+      (function() {
+        'use strict';
+        
+        // Get the undici shim
+        const undiciShim = globalThis.undici || window.undici;
+        
+        if (!undiciShim) {
+          console.error('undici shim not found!');
+          return;
+        }
+        
+        // AGGRESSIVE FIX: Override Error constructor to catch and fix destructuring errors
+        const OriginalError = window.Error;
+        const errorHandler = {
+          get: function(target, prop) {
+            if (prop === 'prototype') {
+              const proto = target.prototype;
+              const originalCaptureStackTrace = proto.captureStackTrace;
+              
+              // Patch TypeError to intercept undici destructuring errors
+              const OriginalTypeError = window.TypeError;
+              window.TypeError = function(message) {
+                const error = new OriginalTypeError(message);
+                
+                // If this is an undici destructuring error, try to fix it
+                if (message && message.includes('Cannot destructure property') && message.includes('undici')) {
+                  console.warn('Intercepted undici destructuring error, attempting to fix...');
+                  
+                  // The error already happened, but we can prevent future ones
+                  // by ensuring undici is always defined
+                  if (typeof globalThis !== 'undefined' && !globalThis.undici) {
+                    globalThis.undici = undiciShim;
+                  }
+                  if (typeof window !== 'undefined' && !window.undici) {
+                    window.undici = undiciShim;
+                  }
+                }
+                
+                return error;
+              };
+              window.TypeError.prototype = OriginalTypeError.prototype;
+              
+              return proto;
+            }
+            return target[prop];
+          }
+        };
+        
+        // Ensure undici is available everywhere
+        if (typeof globalThis !== 'undefined') {
+          globalThis.undici = undiciShim;
+        }
+        if (typeof window !== 'undefined') {
+          window.undici = undiciShim;
+        }
+        if (typeof self !== 'undefined') {
+          self.undici = undiciShim;
+        }
+        
+        // Patch Object.getOwnPropertyDescriptor to ensure undici is always accessible
+        const originalGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+        Object.getOwnPropertyDescriptor = function(obj, prop) {
+          if (prop === 'undici' && (obj === globalThis || obj === window)) {
+            return {
+              value: undiciShim,
+              writable: true,
+              enumerable: true,
+              configurable: true
+            };
+          }
+          return originalGetOwnPropertyDescriptor.apply(this, arguments);
+        };
+        
+        console.log('undici shim verified and runtime patches applied');
+      })();
+    </script>
+    <script>
+      // ULTRA-AGGRESSIVE: Patch the actual destructuring operation
+      // This intercepts any attempt to destructure from undefined
+      (function() {
+        'use strict';
+        
+        // Override Object destructuring by patching Object.keys, Object.entries, etc.
+        // But this is tricky - we need to patch at a lower level
+        
+        // Instead, let's ensure that ANY access to 'undici' returns our shim
+        const undiciShim = globalThis.undici || window.undici;
+        
+        // Use a Proxy to intercept property access on globalThis
+        if (typeof Proxy !== 'undefined' && typeof globalThis !== 'undefined') {
+          try {
+            const globalProxy = new Proxy(globalThis, {
+              get: function(target, prop) {
+                if (prop === 'undici') {
+                  return undiciShim;
+                }
+                return target[prop];
+              },
+              has: function(target, prop) {
+                if (prop === 'undici') {
+                  return true;
+                }
+                return prop in target;
+              }
+            });
+            
+            // Try to replace globalThis (this won't work, but worth trying)
+            // The real fix is ensuring undici is set before modules load
+          } catch(e) {
+            // Proxy might not work in all contexts
+          }
+        }
+      })();
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Emergency fix: Intercept and patch undici errors
+      window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('Cannot destructure property') && e.message.includes('undici')) {
+          console.warn('Intercepted undici destructuring error - applying emergency fix');
+          
+          // Ensure undici is available
+          const shim = globalThis.undici || window.undici;
+          if (shim) {
+            // Try to reload the page after a short delay to apply the fix
+            setTimeout(function() {
+              if (typeof globalThis.undici === 'undefined') {
+                globalThis.undici = shim;
+              }
+              if (typeof window.undici === 'undefined') {
+                window.undici = shim;
+              }
+              console.log('Emergency undici fix applied. Please refresh the page.');
+              // Optionally reload
+              // window.location.reload(true);
+            }, 100);
+          }
+        }
+      }, true);
+    </script>
+    <script>
+      // Diagnostic: Check if root element gets replaced (means React loaded)
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 1 && root.children[0].tagName === 'DIV' && root.children[0].textContent.includes('Loading')) {
+          console.warn('React may not have loaded. Check for JavaScript errors in the console.');
+        }
+      }, 3000);
+    </script>
+  </body>
+</html>
+

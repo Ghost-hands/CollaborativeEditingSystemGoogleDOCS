@@ -1,0 +1,82 @@
+.forbidden-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.forbidden-content {
+  background: white;
+  border-radius: 12px;
+  padding: 60px 40px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 100%;
+}
+
+.forbidden-icon {
+  color: #f44336;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.forbidden-title {
+  font-size: 72px;
+  font-weight: bold;
+  color: #f44336;
+  margin: 0;
+  line-height: 1;
+}
+
+.forbidden-subtitle {
+  font-size: 28px;
+  color: #333;
+  margin: 10px 0;
+  font-weight: 600;
+}
+
+.forbidden-message {
+  font-size: 16px;
+  color: #666;
+  line-height: 1.6;
+  margin: 20px 0 30px;
+}
+
+.forbidden-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.forbidden-actions .btn {
+  min-width: 150px;
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+@media (max-width: 600px) {
+  .forbidden-content {
+    padding: 40px 20px;
+  }
+
+  .forbidden-title {
+    font-size: 56px;
+  }
+
+  .forbidden-subtitle {
+    font-size: 24px;
+  }
+
+  .forbidden-actions {
+    flex-direction: column;
+  }
+
+  .forbidden-actions .btn {
+    width: 100%;
+  }
+}
